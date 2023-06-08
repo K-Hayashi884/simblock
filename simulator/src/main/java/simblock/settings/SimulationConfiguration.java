@@ -94,6 +94,10 @@ public class SimulationConfiguration {
    */
   public static final float CHURN_NODE_RATE = 0.976f;
   /**
+   * The rate of malicious node.
+   */
+  public static final float MALICIOUS_NODE_RATE = 0.00f;
+  /**
    * Compact block size. (unit: byte)
    */
 	public static final long COMPACT_BLOCK_SIZE = 18 * 1000; // 18KB

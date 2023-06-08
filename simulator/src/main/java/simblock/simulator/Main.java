@@ -26,6 +26,7 @@ import static simblock.settings.SimulationConfiguration.STDEV_OF_MINING_POWER;
 import static simblock.settings.SimulationConfiguration.TABLE;
 import static simblock.settings.SimulationConfiguration.CBR_USAGE_RATE;
 import static simblock.settings.SimulationConfiguration.CHURN_NODE_RATE;
+import static simblock.settings.SimulationConfiguration.MALICIOUS_NODE_RATE;
 import static simblock.simulator.Network.getDegreeDistribution;
 import static simblock.simulator.Network.getRegionDistribution;
 import static simblock.simulator.Network.printRegion;
@@ -338,12 +339,15 @@ public class Main {
     // List of churn nodes.
 		List<Boolean> churnNodes = makeRandomList(CHURN_NODE_RATE);
 
+    // List of malicious nodes.
+		List<Boolean> maliciousNodes = makeRandomList(MALICIOUS_NODE_RATE);
+
     for (int id = 1; id <= numNodes; id++) {
       // Each node gets assigned a region, its degree, mining power, routing table and
       // consensus algorithm
       Node node = new Node(
           id, degreeList.get(id - 1) + 1, regionList.get(id - 1), genMiningPower(), TABLE,
-          ALGO, useCBRNodes.get(id - 1), churnNodes.get(id - 1)
+          ALGO, useCBRNodes.get(id - 1), churnNodes.get(id - 1), maliciousNodes.get(id - 1)
       );
       // Add the node to the list of simulated nodes
       addNode(node);

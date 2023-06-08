@@ -85,6 +85,11 @@ public class Node {
   private boolean isChurnNode;
 
   /**
+   * The node causes churn.
+   */
+  private boolean isMaliciousNode;
+
+  /**
    * The current block.
    */
   private Block block;
@@ -129,13 +134,14 @@ public class Node {
    */
   public Node(
       int nodeID, int numConnection, int region, long miningPower, String routingTableName,
-      String consensusAlgoName, boolean useCBR, boolean isChurnNode
+      String consensusAlgoName, boolean useCBR, boolean isChurnNode, boolean isMaliciousNode
   ) {
     this.nodeID = nodeID;
     this.region = region;
     this.miningPower = miningPower;
     this.useCBR = useCBR;
     this.isChurnNode = isChurnNode;
+    this.isMaliciousNode = isMaliciousNode;
 
     try {
       this.routingTable = (AbstractRoutingTable) Class.forName(routingTableName).getConstructor(
@@ -351,9 +357,11 @@ public class Node {
    * @param block the block
    */
   public void sendInv(Block block) {
-    for (Node to : this.routingTable.getNeighbors()) {
-      AbstractMessageTask task = new InvMessageTask(this, to, block);
-      putTask(task);
+    if (!this.isMaliciousNode) {
+      for (Node to : this.routingTable.getNeighbors()) {
+        AbstractMessageTask task = new InvMessageTask(this, to, block);
+        putTask(task);
+      }
     }
   }
 
