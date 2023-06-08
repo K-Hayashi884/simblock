@@ -16,7 +16,6 @@
 
 package simblock.simulator;
 
-
 import static simblock.settings.SimulationConfiguration.ALGO;
 import static simblock.settings.SimulationConfiguration.AVERAGE_MINING_POWER;
 import static simblock.settings.SimulationConfiguration.END_BLOCK_HEIGHT;
@@ -26,7 +25,7 @@ import static simblock.settings.SimulationConfiguration.STDEV_OF_MINING_POWER;
 import static simblock.settings.SimulationConfiguration.TABLE;
 import static simblock.settings.SimulationConfiguration.CBR_USAGE_RATE;
 import static simblock.settings.SimulationConfiguration.CHURN_NODE_RATE;
-import static simblock.settings.SimulationConfiguration.MALICIOUS_NODE_RATE;
+import static simblock.settings.SimulationConfiguration.SELFISH_NODE_RATE;
 import static simblock.simulator.Network.getDegreeDistribution;
 import static simblock.simulator.Network.getRegionDistribution;
 import static simblock.simulator.Network.printRegion;
@@ -54,7 +53,6 @@ import java.util.Set;
 import simblock.block.Block;
 import simblock.node.Node;
 import simblock.task.AbstractMintingTask;
-
 
 /**
  * The type Main represents the entry point.
@@ -90,13 +88,13 @@ public class Main {
   /**
    * The output writer.
    */
-  //TODO use logger
+  // TODO use logger
   public static PrintWriter OUT_JSON_FILE;
 
   /**
    * The constant STATIC_JSON_FILE.
    */
-  //TODO use logger
+  // TODO use logger
   public static PrintWriter STATIC_JSON_FILE;
 
   static {
@@ -119,7 +117,7 @@ public class Main {
     final long start = System.currentTimeMillis();
     setTargetInterval(INTERVAL);
 
-    //start json format
+    // start json format
     OUT_JSON_FILE.print("[");
     OUT_JSON_FILE.flush();
 
@@ -155,7 +153,7 @@ public class Main {
     // Print propagation information about all blocks
     printAllPropagation();
 
-    //TODO logger
+    // TODO logger
     System.out.println();
 
     Set<Block> blocks = new HashSet<>();
@@ -163,7 +161,8 @@ public class Main {
     // Get the latest block from the first simulated node
     Block block = getSimulatedNodes().get(0).getBlock();
 
-    //Update the list of known blocks by adding the parents of the aforementioned block
+    // Update the list of known blocks by adding the parents of the aforementioned
+    // block
     while (block.getParent() != null) {
       blocks.add(block);
       block = block.getParent();
@@ -183,7 +182,7 @@ public class Main {
 
     ArrayList<Block> blockList = new ArrayList<>(blocks);
 
-    //Sort the blocks first by time, then by hash code
+    // Sort the blocks first by time, then by hash code
     blockList.sort((a, b) -> {
       int order = Long.signum(a.getTime() - b.getTime());
       if (order != 0) {
@@ -193,7 +192,7 @@ public class Main {
       return order;
     });
 
-    //Log all orphans
+    // Log all orphans
     // TODO move to method and use logger
     for (Block orphan : orphans) {
       System.out.println(orphan + ":" + orphan.getHeight());
@@ -201,10 +200,11 @@ public class Main {
     System.out.println(averageOrphansSize);
 
     /*
-    Log in format:
-     ＜fork_information, block height, block ID＞
-    fork_information: One of "OnChain" and "Orphan". "OnChain" denote block is on Main chain.
-    "Orphan" denote block is an orphan block.
+     * Log in format:
+     * ＜fork_information, block height, block ID＞
+     * fork_information: One of "OnChain" and "Orphan". "OnChain" denote block is on
+     * Main chain.
+     * "Orphan" denote block is an orphan block.
      */
     // TODO move to method and use logger
     try {
@@ -230,10 +230,9 @@ public class Main {
     OUT_JSON_FILE.print("\"timestamp\":" + getCurrentTime());
     OUT_JSON_FILE.print("}");
     OUT_JSON_FILE.print("}");
-    //end json format
+    // end json format
     OUT_JSON_FILE.print("]");
     OUT_JSON_FILE.close();
-
 
     long end = System.currentTimeMillis();
     simulationTime += end - start;
@@ -242,14 +241,14 @@ public class Main {
 
   }
 
-
-  //TODO　以下の初期生成はシナリオを読み込むようにする予定
-  //ノードを参加させるタスクを作る(ノードの参加と，リンクの貼り始めるタスクは分ける)
-  //シナリオファイルで上の参加タスクをTimer入れていく．
+  // TODO 以下の初期生成はシナリオを読み込むようにする予定
+  // ノードを参加させるタスクを作る(ノードの参加と，リンクの貼り始めるタスクは分ける)
+  // シナリオファイルで上の参加タスクをTimer入れていく．
 
   // TRANSLATED FROM ABOVE STATEMENT
   // The following initial generation will load the scenario
-  // Create a task to join the node (separate the task of joining the node and the task of
+  // Create a task to join the node (separate the task of joining the node and the
+  // task of
   // starting to paste the link)
   // Add the above participating tasks with a timer in the scenario file.
 
@@ -260,7 +259,7 @@ public class Main {
    * @param facum        whether the distribution is cumulative distribution
    * @return array list
    */
-  //TODO explanation on facum etc.
+  // TODO explanation on facum etc.
   public static ArrayList<Integer> makeRandomListFollowDistribution(double[] distribution, boolean facum) {
     ArrayList<Integer> list = new ArrayList<>();
     int index = 0;
@@ -297,20 +296,21 @@ public class Main {
    * @param rate the rate of true
    * @return array list
    */
-  public static ArrayList<Boolean> makeRandomList(float rate){
-		ArrayList<Boolean> list = new ArrayList<Boolean>();
-		for(int i=0; i < NUM_OF_NODES; i++){
-			list.add(i < NUM_OF_NODES*rate);
-		}
-		Collections.shuffle(list, random);
-		return list;
-	}
+  public static ArrayList<Boolean> makeRandomList(float rate) {
+    ArrayList<Boolean> list = new ArrayList<Boolean>();
+    for (int i = 0; i < NUM_OF_NODES; i++) {
+      list.add(i < NUM_OF_NODES * rate);
+    }
+    Collections.shuffle(list, random);
+    return list;
+  }
 
   /**
-   * Generates a random mining power expressed as Hash Rate, and is the number of mining (hash
+   * Generates a random mining power expressed as Hash Rate, and is the number of
+   * mining (hash
    * calculation) executed per millisecond.
    *
-   * @return the number of hash  calculations executed per millisecond.
+   * @return the number of hash calculations executed per millisecond.
    */
   public static int genMiningPower() {
     double r = random.nextGaussian();
@@ -337,18 +337,17 @@ public class Main {
     List<Boolean> useCBRNodes = makeRandomList(CBR_USAGE_RATE);
 
     // List of churn nodes.
-		List<Boolean> churnNodes = makeRandomList(CHURN_NODE_RATE);
+    List<Boolean> churnNodes = makeRandomList(CHURN_NODE_RATE);
 
-    // List of malicious nodes.
-		List<Boolean> maliciousNodes = makeRandomList(MALICIOUS_NODE_RATE);
+    // List of Selfish nodes.
+    List<Boolean> SelfishNodes = makeRandomList(SELFISH_NODE_RATE);
 
     for (int id = 1; id <= numNodes; id++) {
       // Each node gets assigned a region, its degree, mining power, routing table and
       // consensus algorithm
       Node node = new Node(
           id, degreeList.get(id - 1) + 1, regionList.get(id - 1), genMiningPower(), TABLE,
-          ALGO, useCBRNodes.get(id - 1), churnNodes.get(id - 1), maliciousNodes.get(id - 1)
-      );
+          ALGO, useCBRNodes.get(id - 1), churnNodes.get(id - 1), SelfishNodes.get(id - 1));
       // Add the node to the list of simulated nodes
       addNode(node);
 
@@ -369,20 +368,23 @@ public class Main {
       node.joinNetwork();
     }
 
-    // Designates a random node (nodes in list are randomized) to mint the genesis block
+    // Designates a random node (nodes in list are randomized) to mint the genesis
+    // block
     getSimulatedNodes().get(0).genesisBlock();
   }
 
   /**
    * Network information when block height is <em>blockHeight</em>, in format:
    *
-   * <p><em>nodeID_1</em>, <em>nodeID_2</em>
+   * <p>
+   * <em>nodeID_1</em>, <em>nodeID_2</em>
    *
-   * <p>meaning there is a connection from nodeID_1 to right nodeID_1.
+   * <p>
+   * meaning there is a connection from nodeID_1 to right nodeID_1.
    *
    * @param blockHeight the index of the graph and the current block height
    */
-  //TODO use logger
+  // TODO use logger
   public static void writeGraph(int blockHeight) {
     try {
       FileWriter fw = new FileWriter(

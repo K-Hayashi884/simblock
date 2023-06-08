@@ -30,6 +30,7 @@ import static simblock.simulator.Timer.putTask;
 import static simblock.simulator.Timer.removeTask;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -87,7 +88,7 @@ public class Node {
   /**
    * The node causes churn.
    */
-  private boolean isMaliciousNode;
+  private boolean isSelfishNode;
 
   /**
    * The current block.
@@ -110,7 +111,7 @@ public class Node {
   // TODO verify
   private boolean sendingBlock = false;
 
-  //TODO
+  // TODO
   private final ArrayList<AbstractMessageTask> messageQue = new ArrayList<>();
   // TODO
   private final Set<Block> downloadingBlocks = new HashSet<>();
@@ -119,6 +120,8 @@ public class Node {
    * Processing time of tasks expressed in milliseconds.
    */
   private final long processingTime = 2;
+
+  private List<Block> hiddenBlocks = new ArrayList<Block>();
 
   /**
    * Instantiates a new Node.
@@ -134,14 +137,13 @@ public class Node {
    */
   public Node(
       int nodeID, int numConnection, int region, long miningPower, String routingTableName,
-      String consensusAlgoName, boolean useCBR, boolean isChurnNode, boolean isMaliciousNode
-  ) {
+      String consensusAlgoName, boolean useCBR, boolean isChurnNode, boolean isSelfishNode) {
     this.nodeID = nodeID;
     this.region = region;
     this.miningPower = miningPower;
     this.useCBR = useCBR;
     this.isChurnNode = isChurnNode;
-    this.isMaliciousNode = isMaliciousNode;
+    this.isSelfishNode = isSelfishNode;
 
     try {
       this.routingTable = (AbstractRoutingTable) Class.forName(routingTableName).getConstructor(
@@ -218,6 +220,10 @@ public class Node {
     return this.orphans;
   }
 
+  public boolean getSelfishNess() {
+    return this.isSelfishNode;
+  }
+
   /**
    * Gets the number of connections a node can have.
    *
@@ -244,6 +250,10 @@ public class Node {
    */
   public ArrayList<Node> getNeighbors() {
     return this.routingTable.getNeighbors();
+  }
+
+  public void addHiddenBlock(Block block) {
+    this.hiddenBlocks.add(block);
   }
 
   /**
@@ -284,7 +294,8 @@ public class Node {
   }
 
   /**
-   * Adds a new block to the to chain. If node was minting that task instance is abandoned, and
+   * Adds a new block to the to chain. If node was minting that task instance is
+   * abandoned, and
    * the new block arrival is handled.
    *
    * @param newBlock the new block
@@ -325,7 +336,7 @@ public class Node {
    * @param orphanBlock the orphan block
    * @param validBlock  the valid block
    */
-  //TODO check this out later
+  // TODO check this out later
   public void addOrphans(Block orphanBlock, Block validBlock) {
     if (orphanBlock != validBlock) {
       this.orphans.add(orphanBlock);
@@ -357,7 +368,7 @@ public class Node {
    * @param block the block
    */
   public void sendInv(Block block) {
-    if (!this.isMaliciousNode) {
+    if (!this.isSelfishNode || block.getMinter().getNodeID() != this.nodeID) {
       for (Node to : this.routingTable.getNeighbors()) {
         AbstractMessageTask task = new InvMessageTask(this, to, block);
         putTask(task);
@@ -371,6 +382,12 @@ public class Node {
    * @param block the block
    */
   public void receiveBlock(Block block) {
+    if (this.isSelfishNode && block.getMinter().getNodeID() != this.nodeID) {
+      for (Block hiddenBlock : this.hiddenBlocks) {
+        this.sendInv(hiddenBlock);
+      }
+      this.hiddenBlocks = new ArrayList<Block>();
+    }
     if (this.consensusAlgo.isReceivedBlockValid(block, this.block)) {
       if (this.block != null && !this.block.isOnSameChainAs(block)) {
         // If orphan mark orphan
@@ -384,7 +401,8 @@ public class Node {
       this.sendInv(block);
     } else if (!this.orphans.contains(block) && !block.isOnSameChainAs(this.block)) {
       // TODO better understand - what if orphan is not valid?
-      // If the block was not valid but was an unknown orphan and is not on the same chain as the
+      // If the block was not valid but was an unknown orphan and is not on the same
+      // chain as the
       // current block
       this.addOrphans(block, this.block);
       arriveBlock(block, this);
@@ -422,26 +440,26 @@ public class Node {
       }
     }
 
-    if(message instanceof GetBlockTxnMessageTask){
-			this.messageQue.add((GetBlockTxnMessageTask) message);
-			if(!sendingBlock){
-				this.sendNextBlockMessage();
-			}
-		}
+    if (message instanceof GetBlockTxnMessageTask) {
+      this.messageQue.add((GetBlockTxnMessageTask) message);
+      if (!sendingBlock) {
+        this.sendNextBlockMessage();
+      }
+    }
 
-    if(message instanceof CmpctBlockMessageTask){
-			Block block = ((CmpctBlockMessageTask) message).getBlock();
+    if (message instanceof CmpctBlockMessageTask) {
+      Block block = ((CmpctBlockMessageTask) message).getBlock();
       Random random = new Random();
       float CBRfailureRate = this.isChurnNode ? CBR_FAILURE_RATE_FOR_CHURN_NODE : CBR_FAILURE_RATE_FOR_CONTROL_NODE;
-			boolean success = random.nextDouble() > CBRfailureRate ? true : false;
-			if(success){
-				downloadingBlocks.remove(block);
-				this.receiveBlock(block);
-			}else{
-				AbstractMessageTask task = new GetBlockTxnMessageTask(this, from, block);
-				putTask(task);
-			}
-		}
+      boolean success = random.nextDouble() > CBRfailureRate ? true : false;
+      if (success) {
+        downloadingBlocks.remove(block);
+        this.receiveBlock(block);
+      } else {
+        AbstractMessageTask task = new GetBlockTxnMessageTask(this, from, block);
+        putTask(task);
+      }
+    }
 
     if (message instanceof BlockMessageTask) {
       Block block = ((BlockMessageTask) message).getBlock();
@@ -450,20 +468,19 @@ public class Node {
     }
   }
 
-
   /**
    * Gets block size when the node fails compact block relay.
    */
-  private long getFailedBlockSize(){
-		Random random = new Random();
-			if(this.isChurnNode){
-				int index = random.nextInt(CBR_FAILURE_BLOCK_SIZE_DISTRIBUTION_FOR_CHURN_NODE.length);
-				return (long)(BLOCK_SIZE * CBR_FAILURE_BLOCK_SIZE_DISTRIBUTION_FOR_CHURN_NODE[index]);
-			}else{
-				int index = random.nextInt(CBR_FAILURE_BLOCK_SIZE_DISTRIBUTION_FOR_CONTROL_NODE.length);
-				return (long)(BLOCK_SIZE * CBR_FAILURE_BLOCK_SIZE_DISTRIBUTION_FOR_CONTROL_NODE[index]);
-			}
-	}
+  private long getFailedBlockSize() {
+    Random random = new Random();
+    if (this.isChurnNode) {
+      int index = random.nextInt(CBR_FAILURE_BLOCK_SIZE_DISTRIBUTION_FOR_CHURN_NODE.length);
+      return (long) (BLOCK_SIZE * CBR_FAILURE_BLOCK_SIZE_DISTRIBUTION_FOR_CHURN_NODE[index]);
+    } else {
+      int index = random.nextInt(CBR_FAILURE_BLOCK_SIZE_DISTRIBUTION_FOR_CONTROL_NODE.length);
+      return (long) (BLOCK_SIZE * CBR_FAILURE_BLOCK_SIZE_DISTRIBUTION_FOR_CONTROL_NODE[index]);
+    }
+  }
 
   /**
    * Send next block message.
@@ -476,11 +493,12 @@ public class Node {
 
       AbstractMessageTask messageTask;
 
-      if(this.messageQue.get(0) instanceof RecMessageTask){
+      if (this.messageQue.get(0) instanceof RecMessageTask) {
         Block block = ((RecMessageTask) this.messageQue.get(0)).getBlock();
         // If use compact block relay.
-        if(this.messageQue.get(0).getFrom().useCBR && this.useCBR) {
-          // Convert bytes to bits and divide by the bandwidth expressed as bit per millisecond, add
+        if (this.messageQue.get(0).getFrom().useCBR && this.useCBR) {
+          // Convert bytes to bits and divide by the bandwidth expressed as bit per
+          // millisecond, add
           // processing time.
           long delay = COMPACT_BLOCK_SIZE * 8 / (bandwidth / 1000) + processingTime;
 
@@ -491,7 +509,7 @@ public class Node {
           long delay = BLOCK_SIZE * 8 / (bandwidth / 1000) + processingTime;
           messageTask = new BlockMessageTask(this, to, block, delay);
         }
-      } else if(this.messageQue.get(0) instanceof GetBlockTxnMessageTask) {
+      } else if (this.messageQue.get(0) instanceof GetBlockTxnMessageTask) {
         // Else from requests missing transactions.
         Block block = ((GetBlockTxnMessageTask) this.messageQue.get(0)).getBlock();
         long delay = getFailedBlockSize() * 8 / (bandwidth / 1000) + processingTime;
@@ -499,7 +517,7 @@ public class Node {
       } else {
         throw new UnsupportedOperationException();
       }
-      
+
       sendingBlock = true;
       this.messageQue.remove(0);
       putTask(messageTask);
