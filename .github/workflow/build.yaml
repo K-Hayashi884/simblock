@@ -1,4 +1,4 @@
-name: test build
+name: Test build
 on:
   push:
     branches:
@@ -12,11 +12,11 @@ jobs:
       - name: Checkout project sources
         uses: actions/checkout@v4
 
-      - Set up Java
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
