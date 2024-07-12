@@ -1,8 +1,11 @@
 name: Test build
 on:
-  push:
+  pull_request:
     branches:
       - master
+      - feature-cicd
+  push:
+    branches:
       - feature-cicd
 jobs:
   build:
