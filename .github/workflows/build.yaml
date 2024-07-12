@@ -6,6 +6,7 @@ on:
       - feature-cicd
   push:
     branches:
+      - master
       - feature-cicd
 jobs:
   build:
